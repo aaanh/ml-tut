@@ -27,6 +27,7 @@ class IMDBSentimentClassifier(pl.LightningModule):
         super().__init__()
         self.model = transformers.BertForSequenceClassification.from_pretrained(
             FLAGS.model)
+        self.loss = th.nn.CrossEntropyLoss(reduction='none')
 
     def prepare_data(self):
 
@@ -51,7 +52,7 @@ class IMDBSentimentClassifier(pl.LightningModule):
 
         self.train_ds, self.test_ds = map(_prepare_ds, ('train', 'test'))
 
-    def forawrd(self, input_ids):
+    def forward(self, input_ids):
         mask = (input_ids != 0).float()
         logits, = self.model(input_ids, mask)
         return logits
