@@ -21,53 +21,66 @@ flags.DEFINE_integer('seq_length', 32, '')
 
 FLAGS = flags.FLAGS
 
+
 class IMDBSentimentClassifier(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = transformers.BertForSequenceClassification.from_pretrained(FLAGS.model)
+        self.model = transformers.BertForSequenceClassification.from_pretrained(
+            FLAGS.model)
 
     def prepare_data(self):
-        
+
         tokenizer = transformers.BertTokenizer.from_pretrained(FLAGS.model)
-        
+
         def _tokenize(x):
             x['input_ids'] = tokenizer.encode(
-                    x['text'], 
-                    max_length=FLAGS.seq_length, 
-                    pad_to_max_length=True
+                x['text'],
+                max_length=FLAGS.seq_length,
+                pad_to_max_length=True
             )
             return x
 
         def _prepare_ds(split):
-            ds = nlp.load_dataset('imdb', split=f'{split}[:{FLAGS.batch_size if FLAGS.debug else "15%"}]')
+            ds = nlp.load_dataset(
+                'imdb', split=f'{split}[:{FLAGS.batch_size if FLAGS.debug else "15%"}]')
             ds = ds.map(_tokenize)
             ds.set_format(type='torch', columns=['input_ids', 'label'])
             return ds
-            
+
             # import IPython ; IPython.embed() ; exit(1)
 
         self.train_ds, self.test_ds = map(_prepare_ds, ('train', 'test'))
 
-    def forawrd(self, batch):
-        pass
+    def forawrd(self, input_ids):
+        mask = (input_ids != 0).float()
+        logits, = self.model(input_ids, mask)
+        return logits
 
     def training_step(self, batch, batch_idx):
-        import IPython ; IPython.embed() ; exit(1)
+        import IPython
+        IPython.embed()
+        exit(1)
+
+    def validation_step(self, batch, batch_idx):
+        pass
+
+    def validation_epoch_end(self, outputs):
+        pass
 
     def train_dataloader(self):
         return th.utils.data.DataLoader(
             self.train_ds,
-            batch_size = FLAGS.batch_size,
-            drop_last = True,
-            shuffle = True,
+            batch_size=FLAGS.batch_size,
+            drop_last=True,
+            shuffle=True,
         )
 
     def val_dataloader(self):
         return th.utils.data.DataLoader(
             self.test_ds,
-            batch_size = FLAGS.batch_size,
-            drop_last = False,
-            shuffle = False,
+            batch_size=FLAGS.batch_size,
+            drop_last=False,
+            shuffle=False,
         )
 
     def configure_optimizers(self):
@@ -76,6 +89,7 @@ class IMDBSentimentClassifier(pl.LightningModule):
             lr=FLAGS.lr,
             momentum=FLAGS.momentum,
         )
+
 
 def main(_):
     model = IMDBSentimentClassifier()
@@ -86,6 +100,7 @@ def main(_):
         fast_dev_run=FLAGS.debug,
     )
     trainer.fit(model)
+
 
 if __name__ == '__main__':
     app.run(main)
